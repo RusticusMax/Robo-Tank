@@ -72,14 +72,17 @@ void loop() {
 // Manual control functions
 //
 void manualSetup()  {
+  // Set up the servo pins
   pinMode(LEFT_STEP_PIN, OUTPUT);
   pinMode(LEFT_DIR_PIN, OUTPUT);
   pinMode(LEFT_ENABLE_PIN, OUTPUT);
 
+  // Set up the servo pins
   pinMode(RIGHT_STEP_PIN, OUTPUT);
   pinMode(RIGHT_DIR_PIN, OUTPUT);
   pinMode(RIGHT_ENABLE_PIN, OUTPUT);
 
+  // Enable the motors
   digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
   digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
 }
@@ -108,6 +111,7 @@ void manualTestDrive()  {
   digitalWrite(LEFT_ENABLE_PIN, STEP_DISABLE);
 }
 
+// pulse pins high/low with delay between pulses to step motors
 void manualRun(unsigned int step_cnt, unsigned int delay) {
   for(unsigned int Li=0; Li < step_cnt; Li++) {
     digitalWrite(LEFT_STEP_PIN, HIGH);
