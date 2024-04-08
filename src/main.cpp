@@ -50,6 +50,7 @@ unsigned long mmToSteps(unsigned long mm);
 void moveMm(unsigned long mm);
 void stepIfTime(unsigned long speed);
 void stepMotors();
+void byHand();
 
 // Main Code
 void setup() {
@@ -93,25 +94,53 @@ void loop() {
           switch (inChar) {
             case 'w':
               Serial.print("Forward\n");
-              digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
-              digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
+              // digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
+              // digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
               digitalWrite(RIGHT_DIR_PIN, RightFWD);
-              
-              for(i=0; i < 1000; i++) {
-                Serial.print("by hand\n");
-                stepMotors();
-                delay(1);
-              } 
               Serial.print("moveMm()\n");
               moveMm(10);
               break;
+            case 's':
+              Serial.print("Backward\n");
+              digitalWrite(LEFT_DIR_PIN, LeftREV);
+              digitalWrite(RIGHT_DIR_PIN, RightREV);
+              moveMm(10);
+              break;
+            case 'r':
+              Serial.print("Right\n");
+              digitalWrite(LEFT_DIR_PIN, LeftFWD);
+              digitalWrite(RIGHT_DIR_PIN, RightREV);
+              moveMm(10);
+              break;
+            case 'l':
+              Serial.print("Left\n");
+              digitalWrite(LEFT_DIR_PIN, LeftREV);
+              digitalWrite(RIGHT_DIR_PIN, RightFWD);
+              moveMm(10);
+              break;
+            case 'd':
+              Serial.print("DisableMotors\n");
+              digitalWrite(LEFT_ENABLE_PIN, STEP_DISABLE);
+              digitalWrite(RIGHT_ENABLE_PIN, STEP_DISABLE);
+              break;
+            case 'e':
+              Serial.print("Enable Motors\n");
+              digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
+              digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
+              break;
+            case 't':
+              Serial.print("Test Routine\n");
+              Serial.print("drive by hand\n");
+              digitalWrite(LEFT_DIR_PIN, LeftFWD);
+              digitalWrite(RIGHT_DIR_PIN, RightFWD);
+              byHand();
             default:
               Serial.print("Invalid command\n");
               break;
           }
         }
-        stepIfTime(100);
+        stepIfTime(1);
         delay(1);
       }
     default:
@@ -122,15 +151,23 @@ void loop() {
   exit(0);
 }
 
+void byHand() {
+  for(i=0; i < 1000; i++) {
+    Serial.print("by hand\n");
+    stepMotors();
+    delay(1);
+  }
+}
+
 //
 // Basic manual control functions
 //
 
 void stepIfTime(unsigned long speed) {
   if (speed > 0 && Steps > 0) { // If speed is 0, or steps are 0, No stepping
-    if(time_to_run == 0) {  // If time to run is 0, set it to now + speed
-      time_to_run = millis() + speed;
-    }
+    // if(time_to_run == 0) {  // If time to run is 0, set it to now + speed
+    //   time_to_run = millis() + speed;
+    // }
     if (millis() > time_to_run) {
       Serial.print("Stepping: (");
       Serial.print(Steps);
@@ -150,11 +187,11 @@ void moveMm(unsigned long mm) {
 }
 
 unsigned long mmToSteps(unsigned long mm) {
-  return(mm * 10);
+  return(mm * 100);
 }
 
 void stepMotors(){
-  // Serial.print("Stepping motors\n");
+  Serial.print("Stepping motors\n");
   digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
   digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
   digitalWrite(LEFT_DIR_PIN, LeftFWD);
