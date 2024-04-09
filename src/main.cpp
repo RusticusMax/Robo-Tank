@@ -31,8 +31,10 @@ AccelStepper leftTread;
 AccelStepper rightTread;
 unsigned long time_to_run = 0; // time to run the motors
 unsigned long Speed = 10; // Speed in mm a second... someday ;) 
+unsigned long StepDelay = 0; // Delay between steps
+float DistanceMM = 10; // distance to run
 unsigned long Steps = 0; // steps to run
-unsigned long DistanceMM = 0; // distance to run
+
 unsigned int i = 0;
 bool executeMove = false;
 
@@ -48,12 +50,13 @@ void autoSetSpeedR(float speed);
 void autoSetSpeedL(float speed);
 void autoTestDrive();
 void initializeAccelLib();
-unsigned long mmToSteps(unsigned long mm);
-void setDistanceMm(unsigned long mm);
+unsigned long mmToSteps(float mm);
+unsigned long mmToDelay(float mm);
+int setDistanceMm(float mm);
 void stepIfTime(unsigned long speed);
 void stepMotors();
 void byHand();
-unsigned long getParam();
+float getParam();
 
 // Main Code
 void setup() {
@@ -107,33 +110,26 @@ void loop() {
           switch (inChar) {  //fbrldesmta  abdeflmrst
             case 'f':
               Serial.print("Forward\n");
-              // digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
-              // digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
               digitalWrite(RIGHT_DIR_PIN, RightFWD);
-              Serial.print("setDistanceMm()\n");
-              //setDistanceMm(10);
               executeMove = true;
               break;
             case 'b':
               Serial.print("Backward\n");
               digitalWrite(LEFT_DIR_PIN, LeftREV);
               digitalWrite(RIGHT_DIR_PIN, RightREV);
-              //setDistanceMm(10);
               executeMove = true;
               break;
             case 'r':
               Serial.print("Right\n");
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
               digitalWrite(RIGHT_DIR_PIN, RightREV);
-              //setDistanceMm(10);
               executeMove = true;
               break;
             case 'l':
               Serial.print("Left\n");
               digitalWrite(LEFT_DIR_PIN, LeftREV);
               digitalWrite(RIGHT_DIR_PIN, RightFWD);
-              //setDistanceMm(10);
               executeMove = true;
               break;
             case 'd':
@@ -149,6 +145,7 @@ void loop() {
             case 's':
               Serial.print("Set Speed\n");
               Speed = getParam();
+              StepDelay = mmToDelay(Speed);
               Serial.print("Speed Set: (");
               Serial.print(Speed);
               Serial.print(")\n");
@@ -156,7 +153,7 @@ void loop() {
             case 'm':
               Serial.print("Set Distance\n");
               DistanceMM = getParam();
-              setDistanceMm(DistanceMM);
+              Steps = setDistanceMm(DistanceMM);
               Serial.print("Distance Set: (");
               Serial.print(DistanceMM);
               Serial.print(")\n");
@@ -181,7 +178,6 @@ void loop() {
         }
         while(executeMove)  {
           stepIfTime(Speed);
-          delayMicroseconds(100);
         }
       }
     default:
@@ -200,18 +196,22 @@ void byHand() {
   }
 }
 
-unsigned long getParam() {
-  unsigned long param = 0;
-  unsigned long temp = 0;
+// Eat all characters from the serial buffer and return them as a single number
+// Ignore all non-numeric characters
+float getParam() {
+  float param = 0;
+  // float temp = 0;
+  // bool postDecimal = false; // After decimal point change how we handle the number
+  String inString = "";
+  char inChar;
 
-  delay(10); // let the buffer fill up
+  delay(1); // let the buffer fill up ()
   while (Serial.available() > 0) {
-    char inChar = Serial.read();
-    if (inChar >= '0' && inChar <= '9') {
-      temp = inChar - '0';
-      param = param * 10 + temp;
-    }
+    inChar = Serial.read();
+    inString.concat(inChar);
   }
+  param = inString.toFloat();
+
   Serial.print("Param: ");
   Serial.print(param);
   Serial.print("\n");
@@ -223,7 +223,7 @@ unsigned long getParam() {
 //
 
 void stepIfTime(unsigned long speed) {
-  if (executeMove && speed > 0 && Steps > 0) { // If speed is 0, or steps are 0, No stepping
+  if (executeMove && StepDelay > 0 && Steps > 0) { // If speed is 0, or steps are 0, No stepping
     // if(time_to_run == 0) {  // If time to run is 0, set it to now + speed
     //   time_to_run = millis() + speed;
     // }
@@ -232,7 +232,7 @@ void stepIfTime(unsigned long speed) {
       // Serial.print(Steps);
       // Serial.print(")\n");
       stepMotors();
-      time_to_run = micros() + speed;
+      time_to_run = micros() + StepDelay;
       Steps--;
       if(Steps == 0) {
         executeMove = false;
@@ -242,15 +242,27 @@ void stepIfTime(unsigned long speed) {
   }
 }
 
-void setDistanceMm(unsigned long mm) {
-  Steps = mmToSteps(mm);
-  Serial.print("Set Steps to: ");
-  Serial.print(Steps, DEC);
-  Serial.print("\n");
+int setDistanceMm(float mm) {
+  return (mmToSteps(mm));
 }
 
-unsigned long mmToSteps(unsigned long mm) {
-  return(mm * 23);
+unsigned long mmToSteps(float mm) {
+  float tmp;
+  tmp = mm * 22.64150943396;
+  return (unsigned long)(tmp + 0.5);  // round up
+}
+
+// mm per second to delay between steps
+// 200 steps per rev, 1.8 degrees per step, 38mm per rev (wheel diameter)
+// ideally 5ms per step is 1 rev per second = 38mm per second
+// 38mm/200steps = 0.19mm per step
+unsigned long mmToDelay(float mm) { 
+  float tmp;
+  tmp = 1000000.0/(mm/0.19);  // Delay in microseconds
+  Serial.print("Delay: (");
+  Serial.print(tmp);
+  Serial.print(")\n");
+  return (unsigned long)(tmp + 0.5);  // round up
 }
 
 void stepMotors(){
