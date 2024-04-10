@@ -29,9 +29,10 @@ int run_mode = RUN_SERIAL;
 
 AccelStepper leftTread;
 AccelStepper rightTread;
-unsigned long time_to_run = 0; // time to run the motors
+unsigned long timeTillStep = 0; // time to run the motors
 unsigned long Speed = 10; // Speed in mm a second... someday ;) 
 unsigned long StepDelay = 0; // Delay between steps
+unsigned long LastStepTime = 0; // time of last step
 float DistanceMM = 10; // distance to run
 unsigned long Steps = 0; // steps to run
 String Playback[] = {
@@ -66,6 +67,7 @@ void byHand();
 float getParam();
 char scanChar();
 float degToDiffDistance(float deg);
+void prepToMove();
 
 // Main Code
 void setup() {
@@ -101,7 +103,7 @@ void setup() {
 
 void loop() {
   char inChar = 0;
-  digitalWrite(LED_BUILTIN, HIGH);  // Singnle start
+  //digitalWrite(LED_BUILTIN, HIGH);  // Singnle start
 
   switch (run_mode) {
     case RUN_MANUAL:
@@ -112,9 +114,7 @@ void loop() {
       break;
     case RUN_SERIAL:
       while (true) {
-        //if (Serial.available() > 0) {
         if((inChar = scanChar()) != 0) { // If there is a character in the buffer, read it and act on it
-          // char inChar = Serial.read();
           Serial.print("Received: (");
           Serial.print(inChar, HEX);
           Serial.print(")\n");
@@ -123,25 +123,25 @@ void loop() {
               Serial.print("Forward\n");
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
               digitalWrite(RIGHT_DIR_PIN, RightFWD);
-              executeMove = true;
+              prepToMove();
               break;
             case 'b':
               Serial.print("Backward\n");
               digitalWrite(LEFT_DIR_PIN, LeftREV);
               digitalWrite(RIGHT_DIR_PIN, RightREV);
-              executeMove = true;
+              prepToMove();
               break;
             case 'r':
               Serial.print("Right\n");
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
               digitalWrite(RIGHT_DIR_PIN, RightREV);
-              executeMove = true;
+              prepToMove();
               break;
             case 'l':
               Serial.print("Left\n");
               digitalWrite(LEFT_DIR_PIN, LeftREV);
               digitalWrite(RIGHT_DIR_PIN, RightFWD);
-              executeMove = true;
+              prepToMove();
               break;
             case 'd':
               Serial.print("DisableMotors\n");
@@ -215,13 +215,7 @@ void loop() {
               break;
           }
         }
-        if(executeMove)  { // If we are going to move recalculate the delay and steps form settings
-          Steps = setDistanceMm(DistanceMM);
-          StepDelay = mmToDelay(Speed);
-        }
-        while(executeMove)  {
-          stepIfTime(Speed);
-        }
+        stepIfTime(Speed);
       }
     default:
       Serial.print("Invalid run mode?!?\n");
@@ -231,6 +225,14 @@ void loop() {
   exit(0);
 }
 
+void prepToMove() {
+  Steps = setDistanceMm(DistanceMM);
+  StepDelay = mmToDelay(Speed);
+  executeMove = true;
+}
+
+// Scan input for char nonblocking 
+// Also allows for playback of recorded commands
 char scanChar() {
   char inChar = 0;
   if(PlaybackIndex >= 0) {
@@ -263,15 +265,10 @@ float degToDiffDistance(float deg) {
 // Ignore all non-numeric characters
 float getParam() {
   float param = 0;
-  // float temp = 0;
-  // bool postDecimal = false; // After decimal point change how we handle the number
   String inString = "";
   char inChar;
 
-  //delay(1); // let the buffer fill up ()
-  //while (Serial.available() > 0) {
   while(((inChar = scanChar()) >= '0' && inChar <= '9') || inChar == '.') {
-    //inChar = Serial.read();
     inString.concat(inChar);
   }
   param = inString.toFloat();
@@ -287,16 +284,13 @@ float getParam() {
 //
 
 void stepIfTime(unsigned long speed) {
+  // unsigned long curMicros = micros(); // time to run the motors
+
   if (executeMove && StepDelay > 0 && Steps > 0) { // If speed is 0, or steps are 0, No stepping
-    // if(time_to_run == 0) {  // If time to run is 0, set it to now + speed
-    //   time_to_run = millis() + speed;
-    // }
-    if (micros() > time_to_run) {
-      // Serial.print("Stepping: (");
-      // Serial.print(Steps);
-      // Serial.print(")\n");
+    // Deal with wraparound of micros()
+    if (micros() - LastStepTime >= StepDelay) {
       stepMotors();
-      time_to_run = micros() + StepDelay;
+      LastStepTime = micros();
       Steps--;
       if(Steps == 0) {
         executeMove = false;
@@ -322,7 +316,7 @@ unsigned long mmToSteps(float mm) {
 // 38mm/200steps = 0.19mm per step
 unsigned long mmToDelay(float mm) { 
   float tmp;
-  tmp = 1000000.0/(mm/0.19);  // Delay in microseconds
+  tmp = 1000000.0/(mm/0.04);  // Delay in microseconds
   Serial.print("Delay: (");
   Serial.print(tmp);
   Serial.print(")\n");
@@ -330,12 +324,6 @@ unsigned long mmToDelay(float mm) {
 }
 
 void stepMotors(){
-  // Serial.print("Stepping motors\n");
-  // digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
-  // digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
-  // digitalWrite(LEFT_DIR_PIN, LeftFWD);
-  // digitalWrite(RIGHT_DIR_PIN, RightFWD);
-
   digitalWrite(LEFT_STEP_PIN, HIGH);
   digitalWrite(RIGHT_STEP_PIN, HIGH);
 
