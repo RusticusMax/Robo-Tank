@@ -34,6 +34,12 @@ unsigned long Speed = 10; // Speed in mm a second... someday ;)
 unsigned long StepDelay = 0; // Delay between steps
 float DistanceMM = 10; // distance to run
 unsigned long Steps = 0; // steps to run
+String Playback[] = {
+  "s1000 m1000 f", 
+  "s1000 m500 b",
+  };
+int PlaybackIndex = -1;   // -1 is not playing back
+int PlaybackStep = 0;
 
 unsigned int i = 0;
 bool executeMove = false;
@@ -110,7 +116,7 @@ void loop() {
           Serial.print("Received: (");
           Serial.print(inChar, HEX);
           Serial.print(")\n");
-          switch (inChar) {  //fbrldesmta  abdeflmrst
+          switch (inChar) {  //fbrldesmtaP  abdeflmrstP
             case 'f':
               Serial.print("Forward\n");
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
@@ -174,6 +180,22 @@ void loop() {
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
               digitalWrite(RIGHT_DIR_PIN, RightFWD);
               byHand();
+            case 'P':
+              if((inChar = scanChar()) != 0) { // see witch playback to run
+                Serial.print("Received: (");
+                Serial.print(inChar, HEX);
+                Serial.print(")\n");
+                if((inChar = inChar - '0') >= 0 && (unsigned long) inChar < sizeof(Playback)) {
+                  Serial.print("Playback: (");
+                  Serial.print(Playback[(int)inChar]);
+                  Serial.print(")\n");
+                  PlaybackIndex = (int)inChar;  // Turn on playback mode
+                  PlaybackStep = 0;
+                } else {
+                  Serial.print("Invalid playback\n");
+                }
+              }
+              break;
             default:
               Serial.print("Invalid command\n");
               break;
@@ -193,7 +215,14 @@ void loop() {
 
 char scanChar() {
   char inChar = 0;
-  if (Serial.available() > 0) {
+  if(PlaybackIndex >= 0) {
+    if(PlaybackStep < (int)Playback[PlaybackIndex].length()) {
+      inChar = Playback[PlaybackIndex].charAt(PlaybackStep++);
+    } else {
+      PlaybackIndex = -1;
+      PlaybackStep = 0;
+    }
+  } else if (Serial.available() > 0) {
     inChar = Serial.read();
   }
   return inChar;
@@ -218,7 +247,7 @@ float getParam() {
 
   //delay(1); // let the buffer fill up ()
   //while (Serial.available() > 0) {
-  while((inChar = scanChar()) != 0) {
+  while(((inChar = scanChar()) >= '0' && inChar <= '9') || inChar == '.') {
     //inChar = Serial.read();
     inString.concat(inChar);
   }
