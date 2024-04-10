@@ -35,11 +35,12 @@ unsigned long StepDelay = 0; // Delay between steps
 float DistanceMM = 10; // distance to run
 unsigned long Steps = 0; // steps to run
 String Playback[] = {
-  "s1000 m1000 f", 
+  "s50 m80 r", 
   "s1000 m500 b",
   };
 int PlaybackIndex = -1;   // -1 is not playing back
 int PlaybackStep = 0;
+float PivotAngle = 0;
 
 unsigned int i = 0;
 bool executeMove = false;
@@ -64,6 +65,7 @@ void stepMotors();
 void byHand();
 float getParam();
 char scanChar();
+float degToDiffDistance(float deg);
 
 // Main Code
 void setup() {
@@ -116,7 +118,7 @@ void loop() {
           Serial.print("Received: (");
           Serial.print(inChar, HEX);
           Serial.print(")\n");
-          switch (inChar) {  //fbrldesmtaP  abdeflmrstP
+          switch (inChar) {  //fbrldesmtaPp  abdeflmprstP
             case 'f':
               Serial.print("Forward\n");
               digitalWrite(LEFT_DIR_PIN, LeftFWD);
@@ -196,10 +198,26 @@ void loop() {
                 }
               }
               break;
+            case 'p': // Pivot right by n degrees
+              PivotAngle = getParam();
+              DistanceMM = degToDiffDistance(PivotAngle);
+              Steps = setDistanceMm(DistanceMM);
+              Speed = 50; // 50mm/s
+              digitalWrite(LEFT_DIR_PIN, LeftFWD);
+              digitalWrite(RIGHT_DIR_PIN, RightREV);
+              Serial.print("Pivot Set: (");
+              Serial.print(PivotAngle);
+              Serial.print(")\n");
+              executeMove = true;
+              break;
             default:
               Serial.print("Invalid command\n");
               break;
           }
+        }
+        if(executeMove)  { // If we are going to move recalculate the delay and steps form settings
+          Steps = setDistanceMm(DistanceMM);
+          StepDelay = mmToDelay(Speed);
         }
         while(executeMove)  {
           stepIfTime(Speed);
@@ -236,6 +254,11 @@ void byHand() {
   }
 }
 
+// Convert degrees to distance in mm for differential drive
+// how far do treads have to move in opposite directions to turn the robot N degress
+float degToDiffDistance(float deg) {
+  return deg * 1.7777778; // measured
+}
 // Eat all characters from the serial buffer and return them as a single number
 // Ignore all non-numeric characters
 float getParam() {
