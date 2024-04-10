@@ -57,6 +57,7 @@ void stepIfTime(unsigned long speed);
 void stepMotors();
 void byHand();
 float getParam();
+char scanChar();
 
 // Main Code
 void setup() {
@@ -91,6 +92,7 @@ void setup() {
 }
 
 void loop() {
+  char inChar = 0;
   digitalWrite(LED_BUILTIN, HIGH);  // Singnle start
 
   switch (run_mode) {
@@ -102,10 +104,11 @@ void loop() {
       break;
     case RUN_SERIAL:
       while (true) {
-        if (Serial.available() > 0) {
-          char inChar = Serial.read();
+        //if (Serial.available() > 0) {
+        if((inChar = scanChar()) != 0) { // If there is a character in the buffer, read it and act on it
+          // char inChar = Serial.read();
           Serial.print("Received: (");
-          Serial.print(inChar);
+          Serial.print(inChar, HEX);
           Serial.print(")\n");
           switch (inChar) {  //fbrldesmta  abdeflmrst
             case 'f':
@@ -188,6 +191,14 @@ void loop() {
   exit(0);
 }
 
+char scanChar() {
+  char inChar = 0;
+  if (Serial.available() > 0) {
+    inChar = Serial.read();
+  }
+  return inChar;
+}
+
 void byHand() {
   for(i=0; i < 1000; i++) {
     Serial.print("by hand\n");
@@ -205,9 +216,10 @@ float getParam() {
   String inString = "";
   char inChar;
 
-  delay(1); // let the buffer fill up ()
-  while (Serial.available() > 0) {
-    inChar = Serial.read();
+  //delay(1); // let the buffer fill up ()
+  //while (Serial.available() > 0) {
+  while((inChar = scanChar()) != 0) {
+    //inChar = Serial.read();
     inString.concat(inChar);
   }
   param = inString.toFloat();
