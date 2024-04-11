@@ -21,10 +21,10 @@
 #define MANUAL_LOOP_DELAY 200
 
 float Speed = 50.0; // Speed in mm a second
-unsigned long StepDelayMs = 0; // Delay between steps
-unsigned long LastStepTime = 0; // time of last step
+unsigned long StepDelayMs = 0; // Delay between steps. Derived from Speed
+unsigned long LastStepTime = 0; // time of last step.  Set as counter for next step
 float DistanceMM = 10; // distance to run
-unsigned long Steps = 0; // steps to run
+unsigned long Steps = 0; // steps to run. Derived from DistanceMM
 String Playback[] = {
   "s50 m80 r", 
   "s1000 m500 b",
