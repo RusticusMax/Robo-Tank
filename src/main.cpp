@@ -70,9 +70,14 @@ void setup() {
   Serial.print("e = Engage Motors\n");
   Serial.print("d = Disengage Motors\n");
   Serial.print("sx.x = Set Speed in mm/sec\n");
+  Serial.print("Sx.x = Adjust Speed in mm/sec\n");
   Serial.print("mx.x = Set Distance in mm\n");
   Serial.print("axx = Set Absolute Steps directly\n");
   Serial.print("Px = Playback preset command sequence\n");
+
+  // set defaults
+  StepDelayMs = mmASecToMsDelay(Speed);
+  Steps = setDistanceMm(DistanceMM);
 }
 
 void loop() {
@@ -82,26 +87,30 @@ void loop() {
     Serial.print("Received: (");
     Serial.print(inChar, HEX);
     Serial.print(")\n");
-    switch (inChar) {  //fbrldesmaPp  abdeflmprsP
+    switch (inChar) {  //fbrldesmaPpwS  abdeflmprswPS
       case 'f':
         Serial.print("Forward\n");
         digitalWrite(LEFT_DIR_PIN, LeftFWD);
         digitalWrite(RIGHT_DIR_PIN, RightFWD);
+        executeMove = true;
         break;
       case 'b':
         Serial.print("Backward\n");
         digitalWrite(LEFT_DIR_PIN, LeftREV);
         digitalWrite(RIGHT_DIR_PIN, RightREV);
+        executeMove = true;
         break;
       case 'r':
         Serial.print("Right\n");
         digitalWrite(LEFT_DIR_PIN, LeftFWD);
         digitalWrite(RIGHT_DIR_PIN, RightREV);
+        executeMove = true;
         break;
       case 'l':
         Serial.print("Left\n");
         digitalWrite(LEFT_DIR_PIN, LeftREV);
         digitalWrite(RIGHT_DIR_PIN, RightFWD);
+        executeMove = true;
         break;
       case 'p': // Pivot right by n degrees
         PivotAngle = getParam();
@@ -139,6 +148,14 @@ void loop() {
         Serial.print(Speed);
         Serial.print(")\n");
         break;
+      case 'S':
+        Serial.print("Set Relitive Speed\n");
+        Speed += getParam();
+        StepDelayMs = mmASecToMsDelay(Speed);
+        Serial.print("Speed Set: (");
+        Serial.print(Speed);
+        Serial.print(")\n");
+        break;
       case 'm':
         Serial.print("Set Distance\n");
         DistanceMM = getParam();
@@ -155,7 +172,6 @@ void loop() {
         Serial.print(")\n");
         break;
       case 'P':
-        //if((inChar = scanChar()) != 0) { // see which playback to run
         PlaybackIndex = (int)getParam();
         Serial.print("Received: (");
         Serial.print(inChar, HEX);
@@ -169,7 +185,6 @@ void loop() {
           Serial.print("Invalid playback\n");
           PlaybackIndex = -1;
         }
-        //}
         break;
       case 'w':
         Serial.print("Wait\n");
@@ -224,7 +239,7 @@ float getParam() {
   String inString = "";
   char inChar;
 
-  while(((inChar = scanChar()) >= '0' && inChar <= '9') || inChar == '.') {
+  while(((inChar = scanChar()) >= '0' && inChar <= '9') || inChar == '.' || inChar == '-') {
     inString.concat(inChar);
   }
   param = inString.toFloat();
@@ -246,11 +261,11 @@ void stepIfTime(unsigned long speed) {
     if (micros() - LastStepTime >= StepDelayMs) {
       stepMotors();
       LastStepTime = micros();
-      Steps--;
-      if(Steps == 0) {
-        executeMove = false;
-        Serial.print("Move complete\n");
-      }
+      // Steps--;
+      // if(Steps == 0) {
+      //   executeMove = false;
+      //   Serial.print("Move complete\n");
+      // }
     }
   }
 }
