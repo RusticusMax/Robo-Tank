@@ -372,7 +372,7 @@ void stepIfTime() {
   //   Serial.print("\n");
   // }
   if (RexecuteMove && (RStepDelayMs > 0) && (RSteps > 0)) { // If speed is 0, or steps are 0, No stepping
-    if (micros() - RLastStepTime >= RStepDelayMs) {
+    if ((RStepDelayMs != ULONG_MAX) && ((micros() - RLastStepTime) >= RStepDelayMs)) {
       stepMotors(RIGHT_MOTOR);
       RLastStepTime = micros();
       // Steps--;
@@ -384,7 +384,7 @@ void stepIfTime() {
   }
   if (LexecuteMove && LStepDelayMs > 0 && LSteps > 0) { // If speed is 0, or steps are 0, No stepping
     // Deal with wraparound of micros()
-    if (micros() - LLastStepTime >= LStepDelayMs) {
+    if ((LStepDelayMs != ULONG_MAX) && ((micros() - LLastStepTime) >= LStepDelayMs)) {
       stepMotors(LEFT_MOTOR);
       LLastStepTime = micros();
       // Steps--;
