@@ -24,7 +24,7 @@
 #define MANUAL_LOOP_CNT 7000
 #define MANUAL_LOOP_DELAY 200
 
-#define WHEEL_DIST 8 // this is for pivot // actual distance 222.3 // in inches 8.75"
+#define WHEEL_DIST 4 // this is for pivot (emperical) // actual distance 222.3 // in inches 8.75"
 
 //float Speed = 50.0; // Speed in mm a second
 float LSpeed = 50, RSpeed = 50.0; // Speed in mm a second
@@ -36,10 +36,10 @@ unsigned long RLastStepTime = 0, LLastStepTime = 0; // time of last step.  Set a
 float RDistanceMM = 10, LDistanceMM = 10; // distance to run
 //unsigned long Steps = 0; // steps to run. Derived from DistanceMM
 unsigned long RSteps = 0, LSteps = 0; // steps to run. Derived from DistanceMM
-String Playback[] = {
-  "s50 m80 r", 
-  "s1000 m500 b",
-  };
+// String Playback[] = {
+//   "s50 m80 r", 
+//   "s1000 m500 b",
+//   };
 //int PlaybackIndex = -1;   // The predefined string to playback.  -1 is not playing back
 //int PlaybackStep = 0;     // The current step in the playback string
 // float PivotAngle = 0; // Angle to pivot with differential drive
@@ -113,12 +113,12 @@ void setup() {
 void loop() {
   char inChar = 0;
   struct Twist twist = {0,0,0,0,0,0};
-  float deltaSpeed = 0;
+  float deltaSpeed = 0; // Tmp for computing relitive speed
 
   if((inChar = scanChar()) != 0) { // If there is a character in the buffer, read it and act on it
-    Serial.print("Received: (");
-    Serial.print(inChar, HEX);
-    Serial.print(")\n");
+    // Serial.print("Received: (");
+    // Serial.print(inChar, HEX);
+    // Serial.print(")\n");
     switch (inChar) {  //fbrldesmaPpwST  abdeflmprswPST
       case 'f':
         Serial.print("Forward\n");
@@ -240,7 +240,8 @@ void loop() {
         delay(getParam());
         break;
       case 'T': // Twist message Tlx,ly,lz,ax,ay,az
-        Serial.print("Twist\n");
+        // Serial.print("Twist\n");
+        delay(2); // wait for the rest of the message to arrive (10 char@115200 = 0.87ms?)
         twist.lx = getParam();
         twist.ly = getParam();
         twist.lz = getParam();
@@ -250,9 +251,30 @@ void loop() {
         processTwist(twist);
         prepToMove();
         startMove(LEFT_MOTOR + RIGHT_MOTOR);
+        Serial.print("Twisting: R(");
+        Serial.print(RSpeed);
+        Serial.print("), L(");
+        Serial.print(LSpeed);
+        Serial.print(") * (");
+        Serial.print(twist.lx);
+        Serial.print(", ");
+        Serial.print(twist.ly);
+        Serial.print(", ");
+        Serial.print(twist.lz);
+        Serial.print(", ");
+        Serial.print(twist.ax);
+        Serial.print(", ");
+        Serial.print(twist.ay);
+        Serial.print(", ");
+        Serial.print(twist.az);
+        Serial.print(")\n");
         break;
       default:
-        Serial.print("Invalid command\n");
+        Serial.print("Invalid command: (");
+        Serial.print(inChar, HEX);
+        Serial.print(")  (");
+        Serial.print(inChar);
+        Serial.print(")\n");
         break;
     }
   }
@@ -269,6 +291,7 @@ void startMove(int motor) {
   //}
 }
 
+// Turn a twist message into motor speeds
 void processTwist(struct Twist twist)  {
   float rsp, lsp;
 
@@ -278,12 +301,13 @@ void processTwist(struct Twist twist)  {
   LSpeed = lsp;
 }
 
+// Prepare internal states for executing a move command
 void prepToMove() {
   digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
   digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
   // Steps = setDistanceMm(DistanceMM);
-  // RSteps = setDistanceMm(RDistanceMM);
-  // LSteps = setDistanceMm(LDistanceMM);
+  RSteps = setDistanceMm(RDistanceMM);
+  LSteps = setDistanceMm(LDistanceMM);
 
   // StepDelayMs = mmASecToMsDelay(Speed);
   RStepDelayMs = mmASecToMsDelay(RSpeed);
@@ -342,9 +366,9 @@ float getParam() {
   }
   param = inString.toFloat();
 
-  Serial.print("Param: ");
-  Serial.print(param);
-  Serial.print("\n");
+  // Serial.print("Param: ");
+  // Serial.print(param);
+  // Serial.print("\n");
   return param;
 }
 
@@ -432,9 +456,9 @@ unsigned long mmASecToMsDelay(float mm) {
     delayCnt = 1000000.0/(mm/0.04);  // Delay in microseconds
     delayCnt += 0.5; // round up when we cast to unisgned long
   }
-  Serial.print("Delay: (");
-  Serial.print(delayCnt);
-  Serial.print(")\n");
+  // Serial.print("Delay: (");
+  // Serial.print(delayCnt);
+  // Serial.print(")\n");
   return (unsigned long)delayCnt;  // round up
 }
 
