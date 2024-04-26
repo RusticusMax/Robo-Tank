@@ -119,6 +119,7 @@ void loop() {
     // Serial.print("Received: (");
     // Serial.print(inChar, HEX);
     // Serial.print(")\n");
+    delay(2); // wait for the rest of the message to arrive (10 char@115200 = 0.87ms?)
     switch (inChar) {  //fbrldesmaPpwST  abdeflmprswPST
       case 'f':
         Serial.print("Forward\n");
@@ -241,7 +242,6 @@ void loop() {
         break;
       case 'T': // Twist message Tlx,ly,lz,ax,ay,az
         // Serial.print("Twist\n");
-        delay(2); // wait for the rest of the message to arrive (10 char@115200 = 0.87ms?)
         twist.lx = getParam();
         twist.ly = getParam();
         twist.lz = getParam();
