@@ -248,13 +248,13 @@ void loop() {
         twist.ax = getParam();
         twist.ay = getParam();
         twist.az = getParam();
-        processTwist(twist);
-        prepToMove();
+        processTwist(twist);  // Set global RSpeed and LSpeed for motor control
+        prepToMove();         // Set up the motor control variables, and set state to move next step
         startMove(LEFT_MOTOR + RIGHT_MOTOR);
         Serial.print("Twisting: R(");
         Serial.print(RSpeed);
         Serial.print("), L(");
-        Serial.print(LSpeed);
+        Serial.print(LSpeed); 
         Serial.print(") * (");
         Serial.print(twist.lx);
         Serial.print(", ");
