@@ -446,6 +446,27 @@ unsigned long mmToSteps(float mm) {
 // 200 steps per rev, 1.8 degrees per step, 38mm per rev (wheel diameter)
 // ideally 5ms per step is 1 rev per second = 38mm per second
 // 38mm/200steps = 0.19mm per step
+//
+  // 200 steps per revolution 
+  // 38mm per rev
+  // 26.3158 revs in a meter
+  // 5,263.16 steps per meter
+  // 1/5,263.16 =  0.00019 seconds per step = 1 meter per sec
+  // 19us delay per step = 1 meter per sec
+  // Delay = 0.00019 / meters per sec
+unsigned long MetersaSecToMicroSecDelay(float MpS) {
+  float delayCnt = 0;
+
+  if (MpS == 0) {
+    delayCnt = ULONG_MAX;  // minimum speed 1 second per step (Gives us a chance to see the motor is on, incase it's not supposed to be)
+  } else {
+    MpS = abs(MpS); // handle negative speeds (we handle direction in the motor control)
+    delayCnt = 0.00019/MpS;  // Delay in seconds for speed requested (in meters per second)
+  }
+
+  return (unsigned long)delayCnt;
+}
+
 unsigned long mmASecToMsDelay(float mm) { 
   float delayCnt = 0;
   
@@ -454,6 +475,7 @@ unsigned long mmASecToMsDelay(float mm) {
   } else {
     mm = abs(mm); // handle negative speeds
     delayCnt = 1000000.0/(mm/0.04);  // Delay in microseconds
+    // delayCnt = 0.00019/m;  // Delay in seconds for speed requested (in meters per second)
     delayCnt += 0.5; // round up when we cast to unisgned long
   }
   // Serial.print("Delay: (");
