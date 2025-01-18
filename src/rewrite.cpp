@@ -26,16 +26,10 @@
 
 #define WHEEL_DIST 4 // this is for pivot (emperical) // actual distance 222.3 // in inches 8.75"
 
-//float Speed = 50.0; // Speed in mm a second
-float LSpeed = 50, RSpeed = 50.0; // Speed in mm a second
-//unsigned long StepDelayMs = 0; // Delay between steps. Derived from Speed
-unsigned long RStepDelayMs = 0, LStepDelayMs = 0; // Delay between steps. Derived from Speed
-unsigned long LastStepTime = 0; // time of last step.  Set as counter for next step
+float LSpeed = 0.0, RSpeed = 0.0; // Speed in Meters a second
+bool RspeedNonZero = false, LspeedNonZero = false;
+unsigned long RStepDelayMicroS = 0, LStepDelayMicroS = 0; // Delay in microsec between steps. Derived from Speed
 unsigned long RLastStepTime = 0, LLastStepTime = 0; // time of last step.  Set as counter for next step
-
-// bool executeMove = false; // Flag to process the timeToStep function to run the motors
-bool RexecuteMove = false; // Flag to process the timeToStep function to run the motors
-bool LexecuteMove = false; // Flag to process the timeToStep function to run the motors
 
 // Twist message Tlx,ly,lz,ax,ay,az
 struct Twist {
@@ -68,7 +62,6 @@ float degToDiffDistance(float deg);
 void prepToMove();
 void stopAllMotors();
 struct xspeed processTwist(struct Twist twist);
-void startMove(int motor);
 
 // Main Code
 void setup() {
@@ -89,17 +82,15 @@ void loop() {
     // Serial.print(")\n");
     delay(2); // wait for the rest of the message to arrive (10 char@115200 = 0.87ms?)
     switch (inChar) { 
-      case 'h':
-        Serial.print("Halt\n");
+      case 'h':	// Halt
         stopAllMotors();
         break;
-      case 'd':
+      case 'd':	// disable motors
         Serial.print("DisableMotors\n");
         digitalWrite(LEFT_ENABLE_PIN, STEP_DISABLE);
         digitalWrite(RIGHT_ENABLE_PIN, STEP_DISABLE);
         break;
-      case 'e':
-        Serial.print("Enable Motors\n");
+      case 'e':	// enable motors
         digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
         digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
         break;
@@ -112,25 +103,8 @@ void loop() {
         twist.ay = getParam();
         twist.az = getParam();
         tread_speed = processTwist(twist);  // Set global RSpeed and LSpeed for motor control
-        prepToMove();         // Set up the motor control variables, and set state to move next step
-        startMove(LEFT_MOTOR + RIGHT_MOTOR);
-        Serial.print("Twisting: R(");
-        Serial.print(RSpeed);
-        Serial.print("), L(");
-        Serial.print(LSpeed); 
-        Serial.print(") * (");
-        Serial.print(twist.lx);
-        Serial.print(", ");
-        Serial.print(twist.ly);
-        Serial.print(", ");
-        Serial.print(twist.lz);
-        Serial.print(", ");
-        Serial.print(twist.ax);
-        Serial.print(", ");
-        Serial.print(twist.ay);
-        Serial.print(", ");
-        Serial.print(twist.az);
-        Serial.print(")\n");
+				setSpeed(tread_speed.lspeed, tread_speed.rspeed);
+				//firstStep(); ?  step first or wait for next steptime?
         break;
       default:
         Serial.print("Invalid command: (");
@@ -142,16 +116,6 @@ void loop() {
     }
   }
   stepIfTime();
-}
-
-
-void startMove(int motor) {
-  //if((motor | RIGHT_MOTOR) == RIGHT_MOTOR) {
-    RexecuteMove = true;
-  //}
-  //if((motor | LEFT_MOTOR) == LEFT_MOTOR) {
-    LexecuteMove = true;
-  //}
 }
 
 // Turn a twist message into motor speeds
@@ -166,16 +130,13 @@ struct xspeed processTwist(struct Twist twist)  {
 	return tread_speed;
 }
 
-// Prepare internal states for executing a move command
-void prepToMove() {
-  digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
-  digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
-
-  // StepDelayMs = mmASecToMsDelay(Speed);
-  RStepDelayMs = mmASecToMsDelay(RSpeed);
-  LStepDelayMs = mmASecToMsDelay(LSpeed);
-
-  if(RSpeed < 0) {
+//Set speed abd calculate step delay
+void setSpeed(float lspeed, float rspeed) {
+	LSpeed = lspeed;	LspeedNonZero = (lspeed != 0);
+	RSpeed = rspeed;	RspeedNonZero = (rspeed != 0);
+	LStepDelayMicroS = MetersaSecToMicroSecDelay(LSpeed);
+	RStepDelayMicroS = MetersaSecToMicroSecDelay(RSpeed);
+	if(RSpeed < 0) {
     digitalWrite(RIGHT_DIR_PIN, RightREV);
   } else {
     digitalWrite(RIGHT_DIR_PIN, RightFWD);
@@ -187,33 +148,18 @@ void prepToMove() {
   }
 }
 
-void stopAllMotors() {
-  // executeMove = false;
-  RexecuteMove = false;
-  LexecuteMove = false;
-}
-
 // Scan input for char nonblocking 
 // Also allows for playback of recorded commands
 char scanChar() {
   char inChar = 0;
-  // if(PlaybackIndex >= 0) {
-  //   if(PlaybackStep < (int)Playback[PlaybackIndex].length()) {
-  //     inChar = Playback[PlaybackIndex].charAt(PlaybackStep++);
-  //   } else {
-  //     PlaybackIndex = -1;
-  //     PlaybackStep = 0;
-  //   }
-  // } else 
   if (Serial.available() > 0) {
     inChar = Serial.read();
   }
   return inChar;
 }
 
-
 // Eat all characters from the serial buffer and return them as a single number
-// Ignore all non-numeric characters
+// all non-numeric (including floating point and signs) characters are terminators
 float getParam() {
   float param = 0;
   String inString = "";
@@ -223,10 +169,6 @@ float getParam() {
     inString.concat(inChar);
   }
   param = inString.toFloat();
-
-  // Serial.print("Param: ");
-  // Serial.print(param);
-  // Serial.print("\n");
   return param;
 }
 
@@ -234,27 +176,17 @@ float getParam() {
 // Basic control functions
 //
 void stepIfTime() {
-  if (RexecuteMove && (RStepDelayMs > 0)) { // If speed is 0, or steps are 0, No stepping
-    if ((RStepDelayMs != ULONG_MAX) && ((micros() - RLastStepTime) >= RStepDelayMs)) {
+  if (RspeedNonZero && (RStepDelayMicroS > 0)) { // If speed is 0, or steps are 0, No stepping
+    if ((RStepDelayMicroS != ULONG_MAX) && ((micros() - RLastStepTime) >= RStepDelayMicroS)) {
       stepMotors(RIGHT_MOTOR);
       RLastStepTime = micros();
-      // Steps--;
-      // if(Steps == 0) {
-      //   executeMove = false;
-      //   Serial.print("Move complete\n");
-      // }
     }
   }
-  if (LexecuteMove && LStepDelayMs > 0) { // If speed is 0, or steps are 0, No stepping
+  if (LspeedNonZero && (LStepDelayMicroS > 0)) { // If speed is 0, or steps are 0, No stepping
     // Deal with wraparound of micros()
-    if ((LStepDelayMs != ULONG_MAX) && ((micros() - LLastStepTime) >= LStepDelayMs)) {
+    if ((LStepDelayMicroS != ULONG_MAX) && ((micros() - LLastStepTime) >= LStepDelayMicroS)) {
       stepMotors(LEFT_MOTOR);
       LLastStepTime = micros();
-      // Steps--;
-      // if(Steps == 0) {
-      //   executeMove = false;
-      //   Serial.print("Move complete\n");
-      // }
     }
   }
 }
@@ -272,25 +204,25 @@ void stepIfTime() {
   // 19us delay per step = 1 meter per sec
   // Delay = 0.00019 / meters per sec
 // How many microseconds to delay between steps to get the speed requested
-unsigned long MetersaSecToMicroSecDelay(float MpS) {
+unsigned long MetersaSecToMicroSecDelay(float MeterspS) {
   float delayCnt = 0;
 
-  if (MpS == 0) {
+  if (MeterspS == 0) {
     delayCnt = ULONG_MAX;  // minimum speed 1 second per step (Gives us a chance to see the motor is on, incase it's not supposed to be)
   } else {
-    MpS = abs(MpS); // handle negative speeds (we handle direction in the motor control)
-    delayCnt = 0.00019/MpS;  // Delay in seconds for speed requested (in meters per second)
+    MeterspS = abs(MeterspS); // handle negative speeds (we handle direction in the motor control)
+    delayCnt = 0.00019/MeterspS;  // Delay in seconds for speed requested (in meters per second)
   }
 
   return (unsigned long)delayCnt;
 }
 
 void stepMotors(int motor) {
-  //if((motor | RIGHT_MOTOR) == RIGHT_MOTOR) {
+  //if((motor & RIGHT_MOTOR) == RIGHT_MOTOR) {
     digitalWrite(RIGHT_STEP_PIN, HIGH);
     digitalWrite(RIGHT_STEP_PIN, LOW);
   //}
-  //if((motor | LEFT_MOTOR) == LEFT_MOTOR) {
+  //if((motor & LEFT_MOTOR) == LEFT_MOTOR) {
     digitalWrite(LEFT_STEP_PIN, HIGH);
     digitalWrite(LEFT_STEP_PIN, LOW);
   //}
