@@ -454,6 +454,7 @@ unsigned long mmToSteps(float mm) {
   // 1/5,263.16 =  0.00019 seconds per step = 1 meter per sec
   // 19us delay per step = 1 meter per sec
   // Delay = 0.00019 / meters per sec
+// How many microseconds to delay between steps to get the speed requested
 unsigned long MetersaSecToMicroSecDelay(float MpS) {
   float delayCnt = 0;
 
