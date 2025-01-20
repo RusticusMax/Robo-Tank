@@ -50,6 +50,10 @@ void stepIfTime();
 void stepMotors(int motor);
 float getParam();
 char scanChar();
+void initMotors();
+void enableMotors();
+void disableMotors();
+void setSpeed(float lspeed, float rspeed);
 void stopAllMotors();
 void stopRMotor();
 void stopLMotor();
@@ -128,8 +132,8 @@ struct xspeed processTwist(struct Twist twist)  {
   float rsp, lsp;
 	struct xspeed tread_speed;
 
-  tread_speed.lspeed = (twist.az * WHEEL_DIST) /2 + twist.lx;
-  tread_speed.rspeed = twist.lx * 2 - rsp;
+  tread_speed.rspeed = (twist.az * WHEEL_DIST) /2 + twist.lx;
+  tread_speed.lspeed = twist.lx * 2 - tread_speed.rspeed;
 	return tread_speed;
 }
 
