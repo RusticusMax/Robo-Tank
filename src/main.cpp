@@ -78,7 +78,11 @@ void loop() {
     // Serial.print(")\n");
     delay(2); // wait for the rest of the message to arrive (10 char@115200 = 0.87ms?)
     switch (inChar) { 
+      case 'v':	// Version
+        Serial.print("Version 1.1\n");
+        break;
       case 'h':	// Halt
+        Serial.print("Halt all Motors\n");
         stopAllMotors();
         break;
       case 'd':	// disable motors
@@ -87,11 +91,12 @@ void loop() {
         digitalWrite(RIGHT_ENABLE_PIN, STEP_DISABLE);
         break;
       case 'e':	// enable motors
+        Serial.print("EnableMotors\n");
         digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
         digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
         break;
       case 'T': // Twist message Tlx,ly,lz,ax,ay,az
-        // Serial.print("Twist\n");
+        Serial.print("Twist\n");
         twist.lx = getParam();
         twist.ly = getParam();
         twist.lz = getParam();
@@ -102,12 +107,21 @@ void loop() {
 				setSpeed(tread_speed.lspeed, tread_speed.rspeed);
         break;
 			case 'D':	// Set step delay directly (when we let the sender do the calculations)
+        Serial.print("Set motordelay in mirosecs\n");
 				LStepDelayMicroS = getParam();
 				RStepDelayMicroS = getParam();
 				LSpeed = 0;	// indicates that we set delay directly (not used at present, so that's fine)
 				RSpeed = 0;
+        Serial.print("params: (");
+        Serial.print(LStepDelayMicroS, DEC);
+        Serial.print(")  (");
+        Serial.print(RStepDelayMicroS, DEC);
+        Serial.print(")\n");
+        RLastStepTime = micros();
+        LLastStepTime = RLastStepTime;
 				break;
 			case 'C':	// Set step counts (for testing of step length)
+        Serial.print("Set step counts\n");
 				LStepCnt = getParam();
 				RStepCnt = getParam();
 				LStepDelayMicroS = getParam();
@@ -129,7 +143,6 @@ void loop() {
 
 // Turn a twist message into motor speeds in meters per second
 struct xspeed processTwist(struct Twist twist)  {
-  float rsp, lsp;
 	struct xspeed tread_speed;
 
   tread_speed.rspeed = (twist.az * WHEEL_DIST) /2 + twist.lx;
@@ -242,14 +255,14 @@ void stepIfTime() {
 }
 
 void stepMotors(int motor) {
-  //if((motor & RIGHT_MOTOR) == RIGHT_MOTOR) {
+  if(motor & RIGHT_MOTOR) {
     digitalWrite(RIGHT_STEP_PIN, HIGH);
     digitalWrite(RIGHT_STEP_PIN, LOW);
-  //}
-  //if((motor & LEFT_MOTOR) == LEFT_MOTOR) {
+  }
+  if(motor & LEFT_MOTOR) {
     digitalWrite(LEFT_STEP_PIN, HIGH);
     digitalWrite(LEFT_STEP_PIN, LOW);
-  //}
+  }
 }
 
 // Stop all motors and set speed/delay to zero
