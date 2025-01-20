@@ -21,15 +21,13 @@
 #define RIGHT_MOTOR 1
 #define LEFT_MOTOR 2
 
-#define MANUAL_LOOP_CNT 7000
-#define MANUAL_LOOP_DELAY 200
-
-#define WHEEL_DIST 4 // this is for pivot (emperical) // actual distance 222.3 // in inches 8.75"
+#define WHEEL_DIST 0.25 // This is a guess (need it in meters) // actual distance 222.3 // in inches 8.75"
 
 float LSpeed = 0.0, RSpeed = 0.0; // Speed in Meters a second
 bool RspeedNonZero = false, LspeedNonZero = false;
 unsigned long RStepDelayMicroS = 0, LStepDelayMicroS = 0; // Delay in microsec between steps. Derived from Speed
 unsigned long RLastStepTime = 0, LLastStepTime = 0; // time of last step.  Set as counter for next step
+unsigned long RStepCnt = 0, LStepCnt = 0; // steps to run for testing step distance.
 
 // Twist message Tlx,ly,lz,ax,ay,az
 struct Twist {
@@ -104,8 +102,21 @@ void loop() {
         twist.az = getParam();
         tread_speed = processTwist(twist);  // Set global RSpeed and LSpeed for motor control
 				setSpeed(tread_speed.lspeed, tread_speed.rspeed);
-				//firstStep(); ?  step first or wait for next steptime?
         break;
+			case 'D':	// Set step delay directly (when we let the sender do the calculations)
+				LStepDelayMicroS = getParam();
+				RStepDelayMicroS = getParam();
+				LSpeed = 0;	// indicates that we set delay directly (not used at present, so that's fine)
+				RSpeed = 0;
+				break;
+			case 'S':	// Set steps directly (for testing of step length)
+				LStepCnt = getParam();
+				RStepCnt = getParam();
+				LStepDelayMicroS = getParam();
+				RStepDelayMicroS = getParam();
+				LSpeed = 0;	// indicates that we set delay directly (not used at present, so that's fine)
+				RSpeed = 0;
+				break;
       default:
         Serial.print("Invalid command: (");
         Serial.print(inChar, HEX);
@@ -118,22 +129,20 @@ void loop() {
   stepIfTime();
 }
 
-// Turn a twist message into motor speeds
+// Turn a twist message into motor speeds in meters per second
 struct xspeed processTwist(struct Twist twist)  {
   float rsp, lsp;
 	struct xspeed tread_speed;
 
   tread_speed.lspeed = (twist.az * WHEEL_DIST) /2 + twist.lx;
   tread_speed.rspeed = twist.lx * 2 - rsp;
-  // RSpeed = rsp;
-  // LSpeed = lsp;
 	return tread_speed;
 }
 
-//Set speed abd calculate step delay
+//Set speed and calculate step delay
 void setSpeed(float lspeed, float rspeed) {
-	LSpeed = lspeed;	LspeedNonZero = (lspeed != 0);
-	RSpeed = rspeed;	RspeedNonZero = (rspeed != 0);
+	LSpeed = lspeed;
+	RSpeed = rspeed;
 	LStepDelayMicroS = MetersaSecToMicroSecDelay(LSpeed);
 	RStepDelayMicroS = MetersaSecToMicroSecDelay(RSpeed);
 	if(RSpeed < 0) {
@@ -148,8 +157,7 @@ void setSpeed(float lspeed, float rspeed) {
   }
 }
 
-// Scan input for char nonblocking 
-// Also allows for playback of recorded commands
+// Scan input for char nonblocking (returns 0 if no char) 
 char scanChar() {
   char inChar = 0;
   if (Serial.available() > 0) {
@@ -175,21 +183,7 @@ float getParam() {
 //
 // Basic control functions
 //
-void stepIfTime() {
-  if (RspeedNonZero && (RStepDelayMicroS > 0)) { // If speed is 0, or steps are 0, No stepping
-    if ((RStepDelayMicroS != ULONG_MAX) && ((micros() - RLastStepTime) >= RStepDelayMicroS)) {
-      stepMotors(RIGHT_MOTOR);
-      RLastStepTime = micros();
-    }
-  }
-  if (LspeedNonZero && (LStepDelayMicroS > 0)) { // If speed is 0, or steps are 0, No stepping
-    // Deal with wraparound of micros()
-    if ((LStepDelayMicroS != ULONG_MAX) && ((micros() - LLastStepTime) >= LStepDelayMicroS)) {
-      stepMotors(LEFT_MOTOR);
-      LLastStepTime = micros();
-    }
-  }
-}
+
 
 // mm per second to delay between steps
 // 200 steps per rev, 1.8 degrees per step, 38mm per rev (wheel diameter)
@@ -208,13 +202,31 @@ unsigned long MetersaSecToMicroSecDelay(float MeterspS) {
   float delayCnt = 0;
 
   if (MeterspS == 0) {
-    delayCnt = ULONG_MAX;  // minimum speed 1 second per step (Gives us a chance to see the motor is on, incase it's not supposed to be)
+    delayCnt = 0;  // minimum speed 1 second per step (Gives us a chance to see the motor is on, incase it's not supposed to be)
   } else {
     MeterspS = abs(MeterspS); // handle negative speeds (we handle direction in the motor control)
     delayCnt = 0.00019/MeterspS;  // Delay in seconds for speed requested (in meters per second)
   }
 
   return (unsigned long)delayCnt;
+}
+
+void stepIfTime() {
+	unsigned long currentMicros = micros();
+
+  if (RStepDelayMicroS > 0) { // We have a step delay see of we passed it
+    if ((currentMicros - RLastStepTime) >= RStepDelayMicroS) {
+      stepMotors(RIGHT_MOTOR);	// Take a Step...
+      RLastStepTime = currentMicros;	// ...and reset the time marker
+    }
+  }
+  if (LStepDelayMicroS > 0) { // If speed is 0, or steps are 0, No stepping
+    // Deal with wraparound of micros()
+    if ((currentMicros - LLastStepTime) >= LStepDelayMicroS)	{
+      stepMotors(LEFT_MOTOR);
+      LLastStepTime = currentMicros;
+    }
+  }
 }
 
 void stepMotors(int motor) {
@@ -226,6 +238,18 @@ void stepMotors(int motor) {
     digitalWrite(LEFT_STEP_PIN, HIGH);
     digitalWrite(LEFT_STEP_PIN, LOW);
   //}
+}
+
+// Stop all motors and set speed/delay to zero
+void stopAllMotors() {
+	// Set delay and speed to 0
+	LSpeed = 0;
+	RSpeed = 0;
+	LStepDelayMicroS = 0;
+	RStepDelayMicroS = 0;
+	// Make sure we are at the right logic level for step
+	digitalWrite(RIGHT_STEP_PIN, LOW);
+	digitalWrite(LEFT_STEP_PIN, LOW);
 }
 
 //
