@@ -167,7 +167,7 @@ char scanChar() {
 }
 
 // Eat all characters from the serial buffer and return them as a single number
-// all non-numeric (including floating point and signs) characters are terminators
+// all non-numeric (excluding '.', and '-',) characters are terminators
 float getParam() {
   float param = 0;
   String inString = "";
@@ -183,8 +183,6 @@ float getParam() {
 //
 // Basic control functions
 //
-
-
 // mm per second to delay between steps
 // 200 steps per rev, 1.8 degrees per step, 38mm per rev (wheel diameter)
 // ideally 5ms per step is 1 rev per second = 38mm per second
@@ -211,6 +209,8 @@ unsigned long MetersaSecToMicroSecDelay(float MeterspS) {
   return (unsigned long)delayCnt;
 }
 
+// Check globals LastStepTime and StepDelayMicroS to see if we need to step
+// if currentTime is > LastStepTime + StepDelayMicroS then step (but handle micros() wraparound)
 void stepIfTime() {
 	unsigned long currentMicros = micros();
 
@@ -218,6 +218,13 @@ void stepIfTime() {
     if ((currentMicros - RLastStepTime) >= RStepDelayMicroS) {
       stepMotors(RIGHT_MOTOR);	// Take a Step...
       RLastStepTime = currentMicros;	// ...and reset the time marker
+			// step count used for calibration (how long is a step?)  This code can be remove for operation
+			if(RStepCnt > 0) {
+				RStepCnt--;
+				if(RStepCnt == 0) {
+					stopRMotor();
+				}
+			}
     }
   }
   if (LStepDelayMicroS > 0) { // If speed is 0, or steps are 0, No stepping
@@ -225,6 +232,13 @@ void stepIfTime() {
     if ((currentMicros - LLastStepTime) >= LStepDelayMicroS)	{
       stepMotors(LEFT_MOTOR);
       LLastStepTime = currentMicros;
+			// step count used for calibration (how long is a step?)  This code can be remove for operation
+			if(LStepCnt > 0) {
+				LStepCnt--;
+				if(LStepCnt == 0) {
+					stopLMotor();
+				}
+			}
     }
   }
 }
@@ -243,12 +257,19 @@ void stepMotors(int motor) {
 // Stop all motors and set speed/delay to zero
 void stopAllMotors() {
 	// Set delay and speed to 0
-	LSpeed = 0;
+	stopRMotor();
+	stopLMotor();
+}
+
+void stopRMotor() {
 	RSpeed = 0;
-	LStepDelayMicroS = 0;
 	RStepDelayMicroS = 0;
-	// Make sure we are at the right logic level for step
 	digitalWrite(RIGHT_STEP_PIN, LOW);
+}
+
+void stopLMotor() {
+	LSpeed = 0;
+	LStepDelayMicroS = 0;
 	digitalWrite(LEFT_STEP_PIN, LOW);
 }
 
