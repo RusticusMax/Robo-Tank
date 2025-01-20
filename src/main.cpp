@@ -58,6 +58,7 @@ void stopAllMotors();
 void stopRMotor();
 void stopLMotor();
 struct xspeed processTwist(struct Twist twist);
+bool interactiveMode = false;
 
 // Main Code
 void setup() {
@@ -77,26 +78,32 @@ void loop() {
     // Serial.print(inChar, HEX);
     // Serial.print(")\n");
     delay(2); // wait for the rest of the message to arrive (10 char@115200 = 0.87ms?)
-    switch (inChar) { 
+    switch (inChar) {
       case 'v':	// Version
-        Serial.print("Version 1.1\n");
+        Serial.print("Version 1.4\n");
+        break;
+      case 'i': // Interactive mode
+        interactiveMode = !interactiveMode;
+        Serial.print("Interactive mode: ");
+        Serial.print((interactiveMode ? "On" : "Off"));
+        Serial.print("\n");
         break;
       case 'h':	// Halt
-        Serial.print("Halt all Motors\n");
+        if(interactiveMode) Serial.print("Halt all Motors\n");
         stopAllMotors();
         break;
       case 'd':	// disable motors
-        Serial.print("DisableMotors\n");
+        if(interactiveMode) Serial.print("DisableMotors\n");
         digitalWrite(LEFT_ENABLE_PIN, STEP_DISABLE);
         digitalWrite(RIGHT_ENABLE_PIN, STEP_DISABLE);
         break;
       case 'e':	// enable motors
-        Serial.print("EnableMotors\n");
+        if(interactiveMode) Serial.print("EnableMotors\n");
         digitalWrite(LEFT_ENABLE_PIN, STEP_ENABLE);
         digitalWrite(RIGHT_ENABLE_PIN, STEP_ENABLE);
         break;
       case 'T': // Twist message Tlx,ly,lz,ax,ay,az
-        Serial.print("Twist\n");
+        if(interactiveMode) Serial.print("Twist\n");
         twist.lx = getParam();
         twist.ly = getParam();
         twist.lz = getParam();
@@ -107,21 +114,23 @@ void loop() {
 				setSpeed(tread_speed.lspeed, tread_speed.rspeed);
         break;
 			case 'D':	// Set step delay directly (when we let the sender do the calculations)
-        Serial.print("Set motordelay in mirosecs\n");
+        if(interactiveMode) Serial.print("Set motordelay in mirosecs\n");
 				LStepDelayMicroS = getParam();
 				RStepDelayMicroS = getParam();
 				LSpeed = 0;	// indicates that we set delay directly (not used at present, so that's fine)
 				RSpeed = 0;
-        Serial.print("params: (");
-        Serial.print(LStepDelayMicroS, DEC);
-        Serial.print(")  (");
-        Serial.print(RStepDelayMicroS, DEC);
-        Serial.print(")\n");
+        if(interactiveMode) {
+          Serial.print("params: (");
+          Serial.print(LStepDelayMicroS, DEC);
+          Serial.print(")  (");
+          Serial.print(RStepDelayMicroS, DEC);
+          Serial.print(")\n");
+        }
         RLastStepTime = micros();
         LLastStepTime = RLastStepTime;
 				break;
 			case 'C':	// Set step counts (for testing of step length)
-        Serial.print("Set step counts\n");
+        if(interactiveMode) Serial.print("Set step counts\n");
 				LStepCnt = getParam();
 				RStepCnt = getParam();
 				LStepDelayMicroS = getParam();
@@ -130,7 +139,7 @@ void loop() {
 				RSpeed = 0;
 				break;
       default:
-        Serial.print("Invalid command: (");
+        if(interactiveMode) Serial.print("Invalid command: (");
         Serial.print(inChar, HEX);
         Serial.print(")  (");
         Serial.print(inChar);
