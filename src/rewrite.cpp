@@ -109,7 +109,7 @@ void loop() {
 				LSpeed = 0;	// indicates that we set delay directly (not used at present, so that's fine)
 				RSpeed = 0;
 				break;
-			case 'S':	// Set steps directly (for testing of step length)
+			case 'C':	// Set step counts (for testing of step length)
 				LStepCnt = getParam();
 				RStepCnt = getParam();
 				LStepDelayMicroS = getParam();
