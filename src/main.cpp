@@ -21,7 +21,7 @@
 #define RIGHT_MOTOR 1
 #define LEFT_MOTOR 2
 
-#define WHEEL_DIST 0.25 // This is a guess (need it in meters) // actual distance 222.3 // in inches 8.75"
+#define WHEEL_DIST 0.222 // This is  in meters // actual distance 222.3 // in inches 8.75"
 
 float LSpeed = 0.0, RSpeed = 0.0; // Speed in Meters a second
 bool RspeedNonZero = false, LspeedNonZero = false;
