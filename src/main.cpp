@@ -11,10 +11,10 @@
 #define LEFT_ENABLE_PIN 7
 
 // Make logical names for states
-#define LeftFWD LOW
-#define LeftREV HIGH
-#define RightFWD HIGH
-#define RightREV LOW
+#define LeftFWD HIGH
+#define LeftREV LOW
+#define RightFWD LOW
+#define RightREV HIGH
 #define STEP_ENABLE LOW
 #define STEP_DISABLE HIGH
 
