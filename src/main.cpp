@@ -80,7 +80,7 @@ void loop() {
     delay(2); // wait for the rest of the message to arrive (10 char@115200 = 0.87ms?)
     switch (inChar) {
       case 'v':	// Version
-        Serial.print("Version 1.4\n");
+        Serial.print("Version 1.5\n");
         break;
       case 'i': // Interactive mode
         interactiveMode = !interactiveMode;
@@ -165,6 +165,15 @@ void setSpeed(float lspeed, float rspeed) {
 	RSpeed = rspeed;
 	LStepDelayMicroS = MetersaSecToMicroSecDelay(LSpeed);
 	RStepDelayMicroS = MetersaSecToMicroSecDelay(RSpeed);
+  Serial.print("setSpeed: ");
+  Serial.print(LSpeed, 3);
+  Serial.print(", ");
+  Serial.print(RSpeed, 3);
+  Serial.print(", ");
+  Serial.print(LStepDelayMicroS, DEC);
+  Serial.print(", ");
+  Serial.print(RStepDelayMicroS, DEC);
+  Serial.print("\n");
 	if(RSpeed < 0) {
     digitalWrite(RIGHT_DIR_PIN, RightREV);
   } else {
@@ -208,13 +217,19 @@ float getParam() {
 // ideally 5ms per step is 1 rev per second = 38mm per second
 // 38mm/200steps = 0.19mm per step
 //
-  // 200 steps per revolution 
-  // 38mm per rev
-  // 26.3158 revs in a meter
-  // 5,263.16 steps per meter
-  // 1/5,263.16 =  0.00019 seconds per step = 1 meter per sec
-  // 19us delay per step = 1 meter per sec
-  // Delay = 0.00019 / meters per sec
+    // WRONG
+    // 200 steps per revolution 
+    // 38mm per rev
+    // 26.3158 revs in a meter
+    // 5,263.16 steps per meter
+    // 1/5,263.16 =  0.00019 seconds per step = 1 meter per sec
+    // 19us delay per step = 1 meter per sec
+    // Delay = 0.00019 / meters per sec
+// 200 steps per revolution
+// 135mm per rev
+// 1481.48 revs in a meter
+// 675 us per step = 1 meter per sec
+// Delay = 675 / meters per sec = us delay
 // How many microseconds to delay between steps to get the speed requested
 unsigned long MetersaSecToMicroSecDelay(float MeterspS) {
   float delayCnt = 0;
@@ -223,7 +238,7 @@ unsigned long MetersaSecToMicroSecDelay(float MeterspS) {
     delayCnt = 0;  // minimum speed 1 second per step (Gives us a chance to see the motor is on, incase it's not supposed to be)
   } else {
     MeterspS = abs(MeterspS); // handle negative speeds (we handle direction in the motor control)
-    delayCnt = 0.00019/MeterspS;  // Delay in seconds for speed requested (in meters per second)
+    delayCnt = 675.0/MeterspS;  // Delay in seconds for speed requested (in meters per second)
   }
 
   return (unsigned long)delayCnt;
@@ -239,7 +254,7 @@ void stepIfTime() {
       stepMotors(RIGHT_MOTOR);	// Take a Step...
       RLastStepTime = currentMicros;	// ...and reset the time marker
 			// step count used for calibration (how long is a step?)  This code can be remove for operation
-			if(RStepCnt > 0) {
+			if((RSpeed == 0) && (RStepCnt > 0)) {
 				RStepCnt--;
 				if(RStepCnt == 0) {
 					stopRMotor();
@@ -253,7 +268,7 @@ void stepIfTime() {
       stepMotors(LEFT_MOTOR);
       LLastStepTime = currentMicros;
 			// step count used for calibration (how long is a step?)  This code can be remove for operation
-			if(LStepCnt > 0) {
+			if((LSpeed == 0) && (LStepCnt > 0)) {
 				LStepCnt--;
 				if(LStepCnt == 0) {
 					stopLMotor();
