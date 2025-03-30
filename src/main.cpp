@@ -54,6 +54,7 @@ void initMotors();
 void enableMotors();
 void disableMotors();
 void setSpeed(float lspeed, float rspeed);
+void setDirection(int motor, int dir);
 void stopAllMotors();
 void stopRMotor();
 void stopLMotor();
@@ -135,8 +136,8 @@ void loop() {
 				RStepCnt = getParam();
 				LStepDelayMicroS = getParam();
 				RStepDelayMicroS = getParam();
-        setDirection(RIGHT_MOTOR, (RStepCnt < 0) : RightREV ? RightFWD); // Set direction for R motor
-        setDirection(LEFT_MOTOR, (LStepCnt < 0) : LeftREV ? LeftFWD); // Set direction for L motor
+        setDirection(RIGHT_MOTOR, (RStepCnt < 0) ? RightREV : RightFWD); // Set direction for R motor
+        setDirection(LEFT_MOTOR, (LStepCnt < 0) ? LeftREV : LeftFWD); // Set direction for L motor
         RLastStepTime = micros(); // Slop TODO: clear up motor initization is done by seting speed or step count
         LLastStepTime = RLastStepTime;
 				LSpeed = 0;	// indicates that we set delay directly (not used at present, so that's fine)
@@ -179,8 +180,8 @@ void setSpeed(float lspeed, float rspeed) {
   Serial.print(RStepDelayMicroS, DEC);
   Serial.print("\n");
   // Set direction for both motors
-  setDirection(RIGHT_MOTOR, (RSpeed < 0) : RightREV ? RightFWD); // Set direction for both motors
-  setDirection(LEFT_MOTOR, (LSpeed < 0) : LeftREV ? LeftFWD); // Set direction for both motors
+  setDirection(RIGHT_MOTOR, (RSpeed < 0) ? RightREV : RightFWD); // Set direction for both motors
+  setDirection(LEFT_MOTOR, (LSpeed < 0) ? LeftREV : LeftFWD); // Set direction for both motors
 	// if(RSpeed < 0) {
   //   digitalWrite(RIGHT_DIR_PIN, RightREV);
   // } else {
@@ -240,7 +241,7 @@ float getParam() {
     // 5,263.16 steps per meter
     // 1/5,263.16 =  0.00019 seconds per step = 1 meter per sec
     // 19us delay per step = 1 meter per sec
-    // Delay = 0.00019 / meters per sec\
+    // Delay = 0.00019 / meters per sec
     //
     //ALmost right, but not quite
     // 200 steps per revolution
