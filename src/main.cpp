@@ -135,6 +135,10 @@ void loop() {
 				RStepCnt = getParam();
 				LStepDelayMicroS = getParam();
 				RStepDelayMicroS = getParam();
+        setDirection(RIGHT_MOTOR, (RStepCnt < 0) : RightREV ? RightFWD); // Set direction for R motor
+        setDirection(LEFT_MOTOR, (LStepCnt < 0) : LeftREV ? LeftFWD); // Set direction for L motor
+        RLastStepTime = micros(); // Slop TODO: clear up motor initization is done by seting speed or step count
+        LLastStepTime = RLastStepTime;
 				LSpeed = 0;	// indicates that we set delay directly (not used at present, so that's fine)
 				RSpeed = 0;
 				break;
@@ -174,18 +178,30 @@ void setSpeed(float lspeed, float rspeed) {
   Serial.print(", ");
   Serial.print(RStepDelayMicroS, DEC);
   Serial.print("\n");
-	if(RSpeed < 0) {
-    digitalWrite(RIGHT_DIR_PIN, RightREV);
-  } else {
-    digitalWrite(RIGHT_DIR_PIN, RightFWD);
-  }
-  if(LSpeed < 0) {
-    digitalWrite(LEFT_DIR_PIN, LeftREV);
-  } else {
-    digitalWrite(LEFT_DIR_PIN, LeftFWD);
-  }
+  // Set direction for both motors
+  setDirection(RIGHT_MOTOR, (RSpeed < 0) : RightREV ? RightFWD); // Set direction for both motors
+  setDirection(LEFT_MOTOR, (LSpeed < 0) : LeftREV ? LeftFWD); // Set direction for both motors
+	// if(RSpeed < 0) {
+  //   digitalWrite(RIGHT_DIR_PIN, RightREV);
+  // } else {
+  //   digitalWrite(RIGHT_DIR_PIN, RightFWD);
+  // }
+  // if(LSpeed < 0) {
+  //   digitalWrite(LEFT_DIR_PIN, LeftREV);
+  // } else {
+  //   digitalWrite(LEFT_DIR_PIN, LeftFWD);
+  // }
 }
 
+// Set Direction of the motors
+void setDirection(int motor, int dir) {
+  if(motor & RIGHT_MOTOR) {
+    digitalWrite(RIGHT_DIR_PIN, dir);
+  }
+  if(motor & LEFT_MOTOR) {
+    digitalWrite(LEFT_DIR_PIN, dir);
+  }
+}
 // Scan input for char nonblocking (returns 0 if no char) 
 char scanChar() {
   char inChar = 0;
@@ -224,12 +240,22 @@ float getParam() {
     // 5,263.16 steps per meter
     // 1/5,263.16 =  0.00019 seconds per step = 1 meter per sec
     // 19us delay per step = 1 meter per sec
-    // Delay = 0.00019 / meters per sec
+    // Delay = 0.00019 / meters per sec\
+    //
+    //ALmost right, but not quite
+    // 200 steps per revolution
+    // 135mm per rev
+    // 1481.48 steps in a meter
+    // 675 us per step = 1 meter per sec
+    // Delay = 675 / meters per sec = us delay
+// 2000 step test = 52.75inches = 1339.85mm
 // 200 steps per revolution
-// 135mm per rev
-// 1481.48 revs in a meter
-// 675 us per step = 1 meter per sec
-// Delay = 675 / meters per sec = us delay
+// 1339.85/10(revs) = 133.985mm per rev
+// 1339.85mm / 2000 steps = 0.669925mm per step
+// 1000mm / 0.669925mm = 1492.7 steps per meter
+// 1492.7 steps per meter = 0.000669925 seconds per step = 1 meter per sec
+// 669.93 us per step = 1 meter per sec
+// Delay = 669.93 / meters per sec = us delay 
 // How many microseconds to delay between steps to get the speed requested
 unsigned long MetersaSecToMicroSecDelay(float MeterspS) {
   float delayCnt = 0;
@@ -238,7 +264,7 @@ unsigned long MetersaSecToMicroSecDelay(float MeterspS) {
     delayCnt = 0;  // minimum speed 1 second per step (Gives us a chance to see the motor is on, incase it's not supposed to be)
   } else {
     MeterspS = abs(MeterspS); // handle negative speeds (we handle direction in the motor control)
-    delayCnt = 675.0/MeterspS;  // Delay in seconds for speed requested (in meters per second)
+    delayCnt = 669.93/MeterspS;  // Delay in seconds for speed requested (in meters per second)
   }
 
   return (unsigned long)delayCnt;
